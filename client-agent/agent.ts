@@ -93,8 +93,8 @@ const foodOrderTool = new DynamicTool({
 });
 
 const movieBookingTool = new DynamicTool({
-  name: "movie-booker",
-  description: "Books movie tickets for the user.",
+  name: "movie-agent",
+  description: "A specialized agent that can assist users with finding movies, providing reviews and ratings, suggesting films based on preferences",
   func: async (input: string) => {
     return await processMessage(input, 3004);
   },

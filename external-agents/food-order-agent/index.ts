@@ -1,9 +1,9 @@
-import 'dotenv/config';
+import "dotenv/config";
 import type {
   AgentCard,
   TaskStatusUpdateEvent,
   Task,
-  TaskArtifactUpdateEvent
+  TaskArtifactUpdateEvent,
 } from "@a2a-js/sdk";
 
 import {
@@ -19,14 +19,14 @@ import { v4 as uuidv4 } from "uuid";
 
 import express from "express";
 import { basePrompt } from "./basePrompt";
-import { generate } from './generateText';
+import { generate } from "./generateText";
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3002;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3003;
 
-const pizzaHutAgentCard: AgentCard = {
-  name: process.env.AGENT_NAME || "Pizza Hut AI Agent",
+const foodRecipeAgentCard: AgentCard = {
+  name: process.env.AGENT_NAME || "Food Recipe AI Agent",
   description:
-    "A specialized agent that can answer questions about Pizza Hut's menu, deals, ordering, and restaurant information.",
+    "A specialized agent that can help with creating, modifying, and explaining recipes, as well as meal planning and ingredient suggestions.",
   url: `http://localhost:${PORT}/`,
   provider: {
     organization: process.env.AGENT_ORGANIZATION || "A2A Agents",
@@ -45,19 +45,19 @@ const pizzaHutAgentCard: AgentCard = {
   defaultOutputModes: ["text/plain"],
   skills: [
     {
-      id: "pizza_hut_menu_chat",
-      name: "Pizza Hut Menu & Ordering",
+      id: "recipe_creation_chat",
+      name: "Recipe Creation & Cooking Guidance",
       description:
-        "Answer questions or chat about Pizza Hut's menu, deals, ordering process, and restaurant information.",
-      tags: ["pizza", "menu", "deals", "ordering", "locations", "allergies"],
+        "Assist with generating new recipes, modifying existing ones, suggesting ingredient substitutions, and explaining cooking steps.",
+      tags: ["cooking", "recipes", "meal planning", "ingredients", "culinary"],
       examples: [
-        "What pizzas are available at Pizza Hut?",
-        "Tell me about current Pizza Hut deals.",
-        "Where is the nearest Pizza Hut?",
-        "Does Pizza Hut offer gluten-free options?",
-        "How do I place an order for delivery?",
-        "What are Pizza Hut's opening hours?",
-        "Can I customize my pizza order?",
+        "Create a vegan lasagna recipe with lentils instead of cheese.",
+        "Suggest a quick 30-minute dinner recipe using chicken and broccoli.",
+        "How can I make chocolate chip cookies gluten-free?",
+        "Explain step-by-step how to bake a perfect sourdough bread.",
+        "Suggest meal ideas for a low-carb breakfast plan.",
+        "Replace butter with a healthier alternative in this cake recipe.",
+        "Create a festive Indian dessert recipe for Diwali.",
       ],
       inputModes: ["text/plain"],
       outputModes: ["text/plain"],
@@ -66,7 +66,7 @@ const pizzaHutAgentCard: AgentCard = {
   supportsAuthenticatedExtendedCard: false,
 };
 
-// 1. Define your agent's logic as a AgentExecutor
+
 class MyAgentExecutor implements AgentExecutor {
   private cancelledTasks = new Set<string>();
 
@@ -75,7 +75,6 @@ class MyAgentExecutor implements AgentExecutor {
     eventBus: ExecutionEventBus
   ): Promise<void> => {
     this.cancelledTasks.add(taskId);
-    // The execute loop is responsible for publishing the final state
   };
 
   async execute(
@@ -84,22 +83,15 @@ class MyAgentExecutor implements AgentExecutor {
   ): Promise<void> {
     const userMessage = requestContext.userMessage;
     const existingTask = requestContext.task;
-
-    // Access the actual text content from the client message
-    const messageText = userMessage.parts[0]?.kind === 'text' 
-      ? userMessage.parts[0].text 
-      : '';
+    const messageText =
+      userMessage.parts[0]?.kind === "text" ? userMessage.parts[0].text : "";
     console.log("User message content:", messageText);
-
-    // Determine IDs for the task and context, from requestContext.
     const taskId = requestContext.taskId;
     const contextId = requestContext.contextId;
 
     console.log(
       `[MyAgentExecutor] Processing message ${userMessage.messageId} for task ${taskId} (context: ${contextId})`
     );
-
-    // 1. Publish initial Task event if it's a new task
     if (!existingTask) {
       const initialTask: Task = {
         kind: "task",
@@ -111,12 +103,11 @@ class MyAgentExecutor implements AgentExecutor {
         },
         history: [userMessage],
         metadata: userMessage.metadata,
-        artifacts: [], // Initialize artifacts array
+        artifacts: [],
       };
       eventBus.publish(initialTask);
     }
 
-    // 2. Publish "working" status update
     const workingStatusUpdate: TaskStatusUpdateEvent = {
       kind: "status-update",
       taskId: taskId,
@@ -137,25 +128,14 @@ class MyAgentExecutor implements AgentExecutor {
     };
     eventBus.publish(workingStatusUpdate);
 
-    // Simulate work...
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    // Use fetch to call the Anthropic API with the user message, and extract the response text.
-    // We'll use the Claude 3 model (e.g., claude-3-opus-20240229) for this example.
-    // The API key is in process.env.ANTHROPIC_API_KEY
-
-    // Prepare the Anthropic API request
-
 
     let prompt = basePrompt + messageText;
-    const response = "Open AI response here";
-    // const response = await generate(prompt);
+    const response = await generate(prompt);
     console.log("OpenAI response:", response);
-    // Call the Anthropic API
-    let anthropicResponseText = response; // Default response in case of failure
+    let anthropicResponseText = response;
     const artifactId = `artifact-${uuidv4()}`;
     const artifactName = `Generated Code ${uuidv4().substring(0, 8)}`;
-
-    // 3. Publish artifact update
     const artifactUpdate: TaskArtifactUpdateEvent = {
       kind: "artifact-update",
       taskId: taskId,
@@ -165,12 +145,10 @@ class MyAgentExecutor implements AgentExecutor {
         name: artifactName,
         parts: [{ kind: "text", text: anthropicResponseText as string }],
       },
-      append: false, // Each emission is a complete file snapshot
-      lastChunk: true, // True for this file artifact
+      append: false,
+      lastChunk: true,
     };
     eventBus.publish(artifactUpdate);
-
-    // 4. Publish final status update
     const finalUpdate: TaskStatusUpdateEvent = {
       kind: "status-update",
       taskId: taskId,
@@ -179,7 +157,7 @@ class MyAgentExecutor implements AgentExecutor {
         state: "completed",
         message: {
           kind: "message",
-          role: "agent", 
+          role: "agent",
           messageId: uuidv4(),
           taskId: taskId,
           contextId: contextId,
@@ -198,7 +176,7 @@ const taskStore: TaskStore = new InMemoryTaskStore();
 const agentExecutor: AgentExecutor = new MyAgentExecutor();
 
 const requestHandler = new DefaultRequestHandler(
-  pizzaHutAgentCard,
+  foodRecipeAgentCard,
   taskStore,
   agentExecutor
 );
@@ -214,5 +192,7 @@ expressApp.listen(PORT, () => {
     `[MyAgent] Agent Card: http://localhost:${PORT}/.well-known/agent-card.json`
   );
   console.log("[MyAgent] Press Ctrl+C to stop the server");
-  console.log(`[MyAgent] Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(
+    `[MyAgent] Environment: ${process.env.NODE_ENV || "development"}`
+  );
 });

@@ -1,46 +1,53 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { Send } from 'lucide-react'
-
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { Send } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 export default function Page() {
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
-  const [prompt, setPrompt] = useState('')
-  const [loading, setLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>(
+    []
+  );
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const sendMessage = async () => {
-    if (!prompt.trim()) return
-    const userMessage = { role: 'user', content: prompt }
-    setMessages(prev => [...prev, userMessage])
-    setPrompt('')
-    setLoading(true)
+    if (!prompt.trim()) return;
+    const userMessage = { role: "user", content: prompt };
+    setMessages((prev) => [...prev, userMessage]);
+    setPrompt("");
+    setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3001/message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      })
-      const data = await res.json()
-      const botMessage = { role: 'bot', content: data.artifact || 'No response' }
-      setMessages(prev => [...prev, botMessage])
+      const res = await fetch("http://localhost:3001/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, context: messages }),
+      });
+      const data = await res.json();
+      const botMessage = {
+        role: "bot",
+        content: data.reply || "No response",
+      };
+      setMessages((prev) => [...prev, botMessage]);
     } catch {
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
-        { role: 'bot', content: 'Error: Unable to connect to server.' },
-      ])
+        { role: "bot", content: "Error: Unable to connect to server." },
+      ]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
-  const isEmpty = messages.length === 0
+  const isEmpty = messages.length === 0;
 
   return (
     <div className="relative flex flex-col items-center justify-center h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-black text-white overflow-hidden">
@@ -58,12 +65,19 @@ export default function Page() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
               className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-md ${
-                msg.role === 'user'
-                  ? 'bg-gradient-to-br from-blue-600 to-blue-500/80 text-white ml-auto backdrop-blur-md'
-                  : 'bg-white/10 text-white/90 mr-auto backdrop-blur-md'
+                msg.role === "user"
+                  ? "bg-gradient-to-br from-blue-600 to-blue-500/80 text-white ml-auto backdrop-blur-md"
+                  : "bg-white/10 text-white/90 mr-auto backdrop-blur-md"
               }`}
             >
-              {msg.content}
+              <div className="prose prose-invert max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              </div>
             </motion.div>
           ))}
           {loading && (
@@ -83,8 +97,8 @@ export default function Page() {
       <div
         className={`fixed transition-all duration-500 ${
           isEmpty
-            ? 'inset-0 flex items-center justify-center'
-            : 'bottom-6 w-full flex justify-center'
+            ? "inset-0 flex items-center justify-center"
+            : "bottom-6 w-full flex justify-center"
         }`}
       >
         <div className="w-2/3 max-w-3xl flex items-center gap-3 backdrop-blur-xl bg-white/10 rounded-2xl p-3 shadow-[0_0_25px_rgba(255,255,255,0.05)] hover:bg-white/15 transition-all">
@@ -92,8 +106,8 @@ export default function Page() {
             className="flex-1 bg-transparent outline-none text-sm text-white placeholder-white/60"
             placeholder="Send a message..."
             value={prompt}
-            onChange={e => setPrompt(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
           <button
             onClick={sendMessage}
@@ -104,5 +118,5 @@ export default function Page() {
         </div>
       </div>
     </div>
-  )
+  );
 }

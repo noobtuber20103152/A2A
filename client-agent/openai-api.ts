@@ -1,1 +1,1 @@
-export const apiKey = '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'
+export const apiKey = ADD_YOUR_OPEN_AI_API_KEY 
